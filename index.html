@@ -6,102 +6,104 @@
   <title>Doctor Token Display</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
-    html, body {
-      height: 100%;
+    body {
       margin: 0;
-      padding: 0;
-      background: #f4f4f4;
       font-family: Arial, sans-serif;
-    }
-    .container {
-      height: 100%;
       display: flex;
-      flex-direction: column;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #f5f5f5;
       text-align: center;
+      flex-direction: column;
     }
     .doctor-name {
-      font-size: 2rem;
+      font-size: 0em;
       font-weight: bold;
-      margin-bottom: 1rem;
     }
-    .room-no {
-      font-size: 2rem;
-      margin-bottom: 2rem;
+    .room {
+      font-size: 4em;
+      margin-top: 0.5em;
     }
     .token-label {
-      font-size: 2.5rem;
-      font-weight: 600;
+      font-size: 0em;
+      margin-top: 0em;
     }
     .token-number {
-      font-size: 12rem; /* doubled from 6rem */
+      font-size: 7em;
+      color: red;
       font-weight: bold;
-      margin-top: 0.5rem;
-      color: red; /* changed from #2c3e50 to red */
     }
   </style>
 </head>
 <body>
-
-  <div class="container" id="display">
-    <div class="doctor-name" id="doctorName">Loading...</div>
-    <div class="room-no" id="roomNo"></div>
-    <div class="token-label">Token</div>
-    <div class="token-number" id="tokenNumber">--</div>
-  </div>
+  <div id="display"></div>
 
   <script>
-    const SUPABASE_URL = "https://swseqntztxeqguvuhrmo.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3c2VxbnR6dHhlcWd1dnVocm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODYyNDAsImV4cCI6MjA2MDU2MjI0MH0.EsMdhQaGxr8VIQeW4hCF11zFYWRfA8nAButBj_F-_U8";
-    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const TARGET_DOCTOR_NAME = "Dr. Shalu A";
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { createClient } = supabase;
+      const supabaseUrl = 'https://swseqntztxeqguvuhrmo.supabase.co';
+      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3c2VxbnR6dHhlcWd1dnVocm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODYyNDAsImV4cCI6MjA2MDU2MjI0MH0.EsMdhQaGxr8VIQeW4hCF11zFYWRfA8nAButBj_F-_U8';
 
-    async function fetchLatestToken() {
-      const { data, error } = await client
-        .from("running_token_details")
-        .select('"DOCTOR NAME", "ROOM NO", "TOKEN NUMBER", "CREATED AT"')
-        .eq("DOCTOR NAME", TARGET_DOCTOR_NAME)
-        .order("CREATED AT", { ascending: false })
-        .limit(1);
+      const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-      if (error) {
-        console.error("Fetch error:", error);
-        return;
+      const DOCTOR_1 = 'Dr. Shalu A';
+      const DOCTOR_2 = 'Dr. Shalu A';
+
+      async function fetchDoctorToken(doctorName) {
+        const { data, error } = await supabaseClient
+          .from('running_token_details')
+          .select('"DOCTOR NAME", "ROOM NO", "TOKEN NUMBER", "CREATED AT"')
+          .eq('DOCTOR NAME', doctorName)
+          .order('CREATED AT', { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error('Error fetching data:', error);
+          return null;
+        }
+
+        return data.length ? data[0] : null;
       }
 
-      if (data && data.length > 0) {
-        const latest = data[0];
-        document.getElementById("doctorName").textContent = latest["DOCTOR NAME"] || TARGET_DOCTOR_NAME;
-        document.getElementById("roomNo").textContent = `Room No: ${latest["ROOM NO"] || "--"}`;
-        document.getElementById("tokenNumber").textContent = latest["TOKEN NUMBER"] || "--";
-      } else {
-        document.getElementById("doctorName").textContent = TARGET_DOCTOR_NAME;
-        document.getElementById("roomNo").textContent = `Room No: --`;
-        document.getElementById("tokenNumber").textContent = "--";
+      async function updateDisplay() {
+        const displayDiv = document.getElementById('display');
+        displayDiv.innerHTML = 'Loading...';
+
+        let tokenData = await fetchDoctorToken(DOCTOR_1);
+
+        if (!tokenData) {
+          tokenData = await fetchDoctorToken(DOCTOR_2);
+        }
+
+        if (!tokenData) {
+          displayDiv.innerHTML = '<p style="font-size: 3em;">No data available</p>';
+          return;
+        }
+
+        displayDiv.innerHTML = `
+          <div class="doctor-name">${tokenData["DOCTOR NAME"]}</div>
+          <div class="room">Room : ${tokenData["ROOM NO"]}</div>
+          <div class="token-label">Token</div>
+          <div class="token-number">${tokenData["TOKEN NUMBER"]}</div>
+        `;
       }
-    }
 
-    window.onload = async () => {
-      await fetchLatestToken();
+      // Initial fetch
+      await updateDisplay();
 
-      client
-        .channel("realtime:running_token_details")
+      // Real-time subscription
+      supabaseClient
+        .channel('realtime running_token_details')
         .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "running_token_details",
-          },
-          (payload) => {
-            if (payload.new["DOCTOR NAME"] === TARGET_DOCTOR_NAME) {
-              fetchLatestToken();
-            }
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'running_token_details' },
+          payload => {
+            updateDisplay();
           }
         )
         .subscribe();
-    };
+    });
   </script>
 </body>
 </html>
