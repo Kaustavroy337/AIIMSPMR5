@@ -30,7 +30,7 @@
       margin-top: 0em;
     }
     .token-number {
-      font-size: 7em;
+      font-size: 12em;
       color: red;
       font-weight: bold;
     }
@@ -48,7 +48,7 @@
       const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
       const DOCTOR_1 = 'Dr. Shalu A';
-      const DOCTOR_2 = 'Dr. Shalu A';
+      const DOCTOR_2 = 'Dr. Rohit G'; // CHANGE THIS if Doctor 2 is different
 
       async function fetchDoctorToken(doctorName) {
         const { data, error } = await supabaseClient
@@ -89,18 +89,16 @@
         `;
       }
 
-      // Initial fetch
+      // Initial load
       await updateDisplay();
 
-      // Real-time subscription
+      // Realtime updates
       supabaseClient
         .channel('realtime running_token_details')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'running_token_details' },
-          payload => {
-            updateDisplay();
-          }
+          () => updateDisplay()
         )
         .subscribe();
     });
