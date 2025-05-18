@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Doctor Token Display</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700&family=Roboto:wght@700&display=swap" rel="stylesheet">
   <style>
     body {
       margin: 0;
@@ -13,17 +14,20 @@
       align-items: center;
       justify-content: center;
       height: 100vh;
-      background: #f5f5f5;
+      background: #7C9473;
       text-align: center;
       flex-direction: column;
+      color: #FFFFFF;
     }
     .doctor-name {
       font-size: 0em;
       font-weight: bold;
     }
     .room {
-      font-size: 4em;
+      font-size: 5em;
       margin-top: 0.5em;
+      font-family: 'Roboto', sans-serif;
+      font-weight: 700;
     }
     .token-label {
       font-size: 0em;
@@ -31,13 +35,28 @@
     }
     .token-number {
       font-size: 12em;
-      color: red;
-      font-weight: bold;
+      color: #FFFFFF;
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+    }
+
+    .flicker {
+      animation: flickerAnimation 3s ease-in-out;
+    }
+
+    @keyframes flickerAnimation {
+      0%, 20%, 40%, 60%, 80%, 100% { opacity: 1; }
+      10%, 30%, 50%, 70%, 90% { opacity: 0; }
     }
   </style>
 </head>
 <body>
-  <div id="display"></div>
+  <div id="display">
+    <div class="doctor-name" id="doctorName"></div>
+    <div class="room" id="roomNo"></div>
+    <div class="token-label" id="tokenLabel">Token</div>
+    <div class="token-number" id="tokenNumber"></div>
+  </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -46,9 +65,8 @@
       const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3c2VxbnR6dHhlcWd1dnVocm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODYyNDAsImV4cCI6MjA2MDU2MjI0MH0.EsMdhQaGxr8VIQeW4hCF11zFYWRfA8nAButBj_F-_U8';
 
       const supabaseClient = createClient(supabaseUrl, supabaseKey);
-
-      const DOCTOR_1 = 'Dr. Shalu A';
-      const DOCTOR_2 = 'Dr. Rohit G'; // CHANGE THIS if Doctor 2 is different
+      const DOCTOR_NAME = 'Dr. Shalu A';
+      let lastTokenNumber = null;
 
       async function fetchDoctorToken(doctorName) {
         const { data, error } = await supabaseClient
@@ -67,32 +85,37 @@
       }
 
       async function updateDisplay() {
-        const displayDiv = document.getElementById('display');
-        displayDiv.innerHTML = 'Loading...';
+        const tokenData = await fetchDoctorToken(DOCTOR_NAME);
 
-        let tokenData = await fetchDoctorToken(DOCTOR_1);
-
-        if (!tokenData) {
-          tokenData = await fetchDoctorToken(DOCTOR_2);
-        }
+        const doctorEl = document.getElementById('doctorName');
+        const roomEl = document.getElementById('roomNo');
+        const tokenEl = document.getElementById('tokenNumber');
 
         if (!tokenData) {
-          displayDiv.innerHTML = '<p style="font-size: 3em;">No data available</p>';
+          doctorEl.textContent = '';
+          roomEl.textContent = '';
+          tokenEl.textContent = '';
           return;
         }
 
-        displayDiv.innerHTML = `
-          <div class="doctor-name">${tokenData["DOCTOR NAME"]}</div>
-          <div class="room">Room : ${tokenData["ROOM NO"]}</div>
-          <div class="token-label">Token</div>
-          <div class="token-number">${tokenData["TOKEN NUMBER"]}</div>
-        `;
+        doctorEl.textContent = tokenData["DOCTOR NAME"];
+        roomEl.textContent = `Room : ${tokenData["ROOM NO"]}`;
+
+        const newToken = tokenData["TOKEN NUMBER"];
+
+        if (lastTokenNumber !== null && newToken !== lastTokenNumber) {
+          // Flicker effect
+          tokenEl.classList.remove('flicker');
+          void tokenEl.offsetWidth; // Force reflow
+          tokenEl.classList.add('flicker');
+        }
+
+        tokenEl.textContent = newToken;
+        lastTokenNumber = newToken;
       }
 
-      // Initial load
       await updateDisplay();
 
-      // Realtime updates
       supabaseClient
         .channel('realtime running_token_details')
         .on(
